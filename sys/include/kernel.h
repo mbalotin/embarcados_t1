@@ -73,5 +73,6 @@ struct queue *krnl_run_queue;				/*!< pointer to a queue of best effort tasks */
 struct queue *krnl_delay_queue;				/*!< pointer to a queue of delayed tasks */
 struct queue *krnl_rt_queue;				/*!< pointer to a queue of real time tasks */
 struct queue *krnl_event_queue;				/*!< pointer to a queue of tasks waiting for an event */
+struct queue *krnl_tarefas_aper;			/*!< pointer to a queue of aperiodic tasks*/
 uint8_t krnl_heap[HEAP_SIZE];				/*!< contiguous heap memory area to be used as a memory pool. the memory allocator (malloc() and free()) controls this data structure */
 uint32_t krnl_free;					/*!< amount of free heap memory, in bytes */
