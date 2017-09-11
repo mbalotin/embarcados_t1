@@ -1,5 +1,5 @@
-APP = app/queues2
-ARCH = riscv/hf-riscv
+APP = app/my_app
+ARCH = mips/hf-risc
 
 SERIAL_BAUD=57600
 SERIAL_DEVICE=/dev/ttyUSB0
