@@ -2,18 +2,18 @@
  * @file main.c
  * @author Sergio Johann Filho
  * @date January 2016
- * 
+ *
  * @section LICENSE
  *
  * This source code is licensed under the GNU General Public License,
  * Version 2.  See the file 'doc/license/gpl-2.0.txt' for more details.
- * 
+ *
  * @section DESCRIPTION
- * 
+ *
  * The HellfireOS realtime operating system kernel.
- * 
+ *
  */
- 
+
 #include <hal.h>
 #include <libc.h>
 #include <kprintf.h>
@@ -44,7 +44,7 @@ static void print_config(void)
 static void clear_tcb(void)
 {
 	uint16_t i;
-	
+
 	for(i = 0; i < MAX_TASKS; i++){
 		krnl_task = &krnl_tcb[i];
 		krnl_task->id = -1;
@@ -101,18 +101,24 @@ static void idletask(void)
 	kprintf("\nKERNEL: HellfireOS is running\n");
 
 	hf_schedlock(0);
-	
+
 	for (;;){
 		_cpu_idle();
 	}
 }
 
+static void escalonadorAperiodico(void){
+    while(true){
+
+    }
+}
+
 /**
  * @internal
  * @brief HellfireOS kernel entry point and system initialization.
- * 
+ *
  * @return should not return.
- * 
+ *
  * We assume that the following machine state has been already set
  * before this routine.
  *	- Kernel BSS section is filled with 0.
@@ -123,7 +129,7 @@ static void idletask(void)
 int main(void)
 {
 	static uint32_t oops=0xbaadd00d;
-	
+
 	_hardware_init();
 	hf_schedlock(1);
 	_di();
@@ -139,7 +145,11 @@ int main(void)
 		_irq_init();
 		_timer_init();
 		_timer_reset();
-		hf_spawn(idletask, 0, 0, 0, "idle task", 1024);
+		//hf_spawn(idletask, 0, 0, 0, "idle task", 1024);
+
+        // TODO check capacity,, period e deadline
+        hf_spawn(escalonadorAperiodico, 0, 0, 0, "Escalonador Aperiodico task", 1024);
+
 		_device_init();
 		_task_init();
 		app_main();
@@ -148,6 +158,7 @@ int main(void)
 	}else{
 		panic(PANIC_GPF);
 	}
-	
+
 	return 0;
 }
+
