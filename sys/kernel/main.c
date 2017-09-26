@@ -69,6 +69,7 @@ static void clear_tcb(void)
 
 	krnl_tasks = 0;
 	krnl_current_task = 0;
+	krnl_aper_current_task = 0;
 	krnl_schedule = 0;
 }
 
@@ -108,8 +109,48 @@ static void idletask(void)
 }
 
 static void escalonadorAperiodico(void){
+    int32_t rc;
+    volatile int32_t status;
+
     while(true){
 
+        status = _di();
+        #if KERNEL_LOG >= 1
+            dprintf("escalonadorAperiodico() %d ", (uint32_t)_read_us());
+        #endif
+        krnl_task = &krnl_tarefas_aper[krnl_aper_current_task];
+        rc = setjmp(krnl_task->task_context);
+        if (rc)
+        {
+            _ei(status);
+            continue;
+        }
+
+        if (krnl_task->pstack[0] != STACK_MAGIC)
+            panic(PANIC_STACK_OVERFLOW);
+        if (krnl_task->state == TASK_RUNNING)
+            krnl_task->state = TASK_READY;
+        if ( hf_queue_count(krnl_tarefas_aper) > 0)
+        {
+            krnl_current_task = krnl_pcb.sched_be();
+            krnl_task->state = TASK_RUNNING;
+            krnl_pcb.coop_cswitch++;
+            #if KERNEL_LOG >= 1
+                    dprintf("\n%d %d %d %d %d ", krnl_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
+            #endif
+            krnl_task->capacity =  krnl_task->capacity - 1;
+            if (krnl_task->capacity > 0){
+                hf_queue_addtail(krnl_task);
+                _restoreexec(krnl_task->task_context, status, krnl_current_task);
+            }else
+                hf_kill(krnl_task);
+                //TODO KILL task
+            panic(PANIC_UNKNOWN);
+        }
+        else
+        {
+            panic(PANIC_NO_TASKS_LEFT);
+        }
     }
 }
 
