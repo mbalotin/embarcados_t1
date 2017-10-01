@@ -1,0 +1,1 @@
+hf_schedlock() 25240 hf_spawn() 26051 hf_spawn() 26330 hf_spawn() 26596 hf_spawn() 26863 hf_spawn() 27140 hf_spawn() 27402 hf_spawn() 27666 irq2 27932 dispatch 28065 escalonadorAperiodico() 28269 
