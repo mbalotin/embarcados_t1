@@ -108,49 +108,71 @@ static void idletask(void)
 }
 
 static void escalonadorAperiodico(void){
+	dprintf("oi 1");
     int32_t rc;
     volatile int32_t status;
-    
-	uint16_t krnl_aper_current_task = 0;	
 
+	uint16_t krnl_aper_current_task = 0;
+	hf_schedlock(0);
     for( ;; ){
-        status = _di();
-        #if KERNEL_LOG >= 1
-            dprintf("escalonadorAperiodico() %d ", (uint32_t)_read_us());
-        #endif
-        krnl_task = &krnl_tarefas_aper[krnl_aper_current_task];
-        rc = setjmp(krnl_task->task_context);
-        if (rc)
-        {
+		status = _di();
+        
+		if ( hf_queue_count(krnl_tarefas_aper) == 0){
             _ei(status);
+			hf_yield();
+            continue;
+		}
+        
+        #if KERNEL_LOG >= 10
+            kprintf("escalonadorAperiodico() %d ", (uint32_t)_read_us());
+        #endif
+        
+        krnl_task = hf_queue_get(krnl_tarefas_aper, 0);
+        
+        rc = setjmp(krnl_task->task_context);
+        if (rc) {
+            _ei(status);
+			hf_yield();
             continue;
         }
-
-        if (krnl_task->pstack[0] != STACK_MAGIC)
+        if (krnl_task->pstack[0] != STACK_MAGIC){
             panic(PANIC_STACK_OVERFLOW);
+		}
         if (krnl_task->state == TASK_RUNNING)
             krnl_task->state = TASK_READY;
         if ( hf_queue_count(krnl_tarefas_aper) > 0)
         {
-            krnl_aper_current_task = krnl_pcb.sched_be();
             krnl_task->state = TASK_RUNNING;
             krnl_pcb.coop_cswitch++;
-            #if KERNEL_LOG >= 1
-                    dprintf("\n[APER]%d %d %d %d %d ", krnl_aper_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
+            #if KERNEL_LOG >= 10
+                    kprintf("\n[APER]%d %d %d %d %d ", krnl_aper_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
             #endif
-            krnl_task->capacity =  krnl_task->capacity - 1;
             if (krnl_task->capacity > 0){
+				krnl_task->state = TASK_RUNNING;
+				krnl_pcb.coop_cswitch++;
+				
+				krnl_task->capacity =  krnl_task->capacity - 1;
+				hf_queue_remhead(krnl_tarefas_aper);
+                if (hf_queue_addtail(krnl_tarefas_aper, krnl_task)) panic(PANIC_CANT_PLACE_RUN);
+                _restoreexec(krnl_task->task_context, status, 15);
+				hf_yield();
+			} else {
+				hf_queue_remhead(krnl_tarefas_aper);
+				hf_yield();
+			}
+				
+            /*if (krnl_task->capacity > 0){
                 hf_queue_addtail(krnl_aper_current_task, krnl_task);
                 _restoreexec(krnl_task->task_context, status, krnl_aper_current_task);
-            }else
+            }else{
                 hf_kill(krnl_task);
-                //TODO KILL task
-            panic(PANIC_UNKNOWN);
+			}*/
+
+            //TODO KILL task
+            
         }
-        else
-        {
-            panic(PANIC_NO_TASKS_LEFT);
-        }
+        _ei(status);
+        //else { panic(PANIC_NO_TASKS_LEFT);    }
     }
 }
 
@@ -171,6 +193,7 @@ int main(void)
 {
 	static uint32_t oops=0xbaadd00d;
 
+		dprintf("olar");
 	_hardware_init();
 	hf_schedlock(1);
 	_di();
@@ -186,10 +209,11 @@ int main(void)
 		_irq_init();
 		_timer_init();
 		_timer_reset();
+		
 		//hf_spawn(idletask, 0, 0, 0, "idle task", 1024);
-
+		
         // TODO check capacity,, period e deadline
-        hf_spawn(escalonadorAperiodico, 0, 0, 0, "Escalonador Aperiodico task", 1024);
+        hf_spawn(escalonadorAperiodico,0,0,0, "Escalonador Aperiodico task", 1024);
 
 		_device_init();
 		_task_init();

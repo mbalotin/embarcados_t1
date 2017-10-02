@@ -16,9 +16,7 @@ void app_main(void){
 	hf_spawn(task, 8, 2, 8, "task b", 2048);
 	hf_spawn(task, 12, 3, 12, "task c", 2048);
 	
-	// delay ms() e random()
+	// delay ms() e random() 
 	
-	hf_spawn(task, 0, 3, 0, "task aper I", 2048);
-	hf_spawn(task, 0, 4, 0, "task aper II", 2048);
-	hf_spawn(task, 0, 5, 0, "task aper III", 2048);
+	hf_spawn(task, 0, 3, 0, "APER a", 2048);
 }

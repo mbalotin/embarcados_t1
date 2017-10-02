@@ -1,1 +1,4 @@
-hf_schedlock() 25240 hf_spawn() 26051 hf_spawn() 26330 hf_spawn() 26596 hf_spawn() 26863 hf_spawn() 27140 hf_spawn() 27402 hf_spawn() 27666 irq2 27932 dispatch 28065 escalonadorAperiodico() 28269 
+olarhf_schedlock() 25244 HMMMMMMMMMMMMMMhf_spawn() 26075 HMMMMMMMMMMMMMMHMMMMMMMMMMMMMMHMMMMMMMMMMMMMMhf_spawn() 26381 HMMMMMMMMMMMMMMHMMMMMMMMMMMMMMHMMMMMMMMMMMMMMhf_spawn() 26674 HMMMMMMMMMMMMMMHMMMMMMMMMMMMMMHMMMMMMMMMMMMMMhf_spawn() 26967 HMMMMMMMMMMMMMMHMMMMMMMMMMMMMMirq2 27263 dispatch 27396 oi 1escalonadorAperiodico() AAAAAAAAAAAAAAA
+
+
+ai sabeescalonadorAperiodico() 27631 ai sabe 2

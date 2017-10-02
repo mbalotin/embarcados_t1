@@ -238,6 +238,7 @@ int32_t hf_spawn(void (*task)(), uint16_t period, uint16_t capacity, uint16_t de
 #if KERNEL_LOG == 2
     dprintf("hf_spawn() %d ", (uint32_t)_read_us());
 #endif
+
     if (period > 0 && deadline > 0)
     {
         if ((period < capacity) || (deadline < capacity))
@@ -279,9 +280,13 @@ int32_t hf_spawn(void (*task)(), uint16_t period, uint16_t capacity, uint16_t de
     krnl_task->pstack = (size_t *)hf_malloc(stack_size);
     _set_task_sp(krnl_task->id, (size_t)krnl_task->pstack + (stack_size - 4));
     _set_task_tp(krnl_task->id, krnl_task->ptask);
+
     if (krnl_task->pstack)
     {
         krnl_task->pstack[0] = STACK_MAGIC;
+        
+        if (krnl_task->pstack[0] != STACK_MAGIC)
+			kprintf("\n KERNEL MAGIC %d - %d\n",STACK_MAGIC,krnl_task->pstack[0]);
         kprintf("\nKERNEL: [%s], id: %d, p:%d, c:%d, d:%d, addr: %x, sp: %x, ss: %d bytes", krnl_task->name, krnl_task->id, krnl_task->period, krnl_task->capacity, krnl_task->deadline, krnl_task->ptask, _get_task_sp(krnl_task->id), stack_size);
         if (period)
         {
