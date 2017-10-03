@@ -145,39 +145,12 @@ int32_t sched_rr(void)
         panic(PANIC_NO_TASKS_RUN);
     do
     {
-        run_queue_next();hf_selfid
+        run_queue_next();
     }
     while (krnl_task->state == TASK_BLOCKED);
     krnl_task->bgjobs++;
 
     return krnl_task->id;
-}
-
-
-int32_t sched_ape(void)
-{
-    if (hf_queue_count(krnl_tarefas_aper) == 0) panic(PANIC_NO_TASKS_RUN);
-    do
-    {
-
-
-
-    }
-}
-
-static void aper_queue_next()
-{
-    krnl_task = hf_queue_remhead(krnl_tarefas_aper);
-
-    if (!krnl_task)
-        panic(PANIC_NO_TASKS_RUN);
-
-    if (krnl_task->capacity == 0) hf_kill();
-    else
-    {
-        if (hf_queue_addtail(krnl_tarefas_aper, krnl_task))
-            panic(PANIC_CANT_PLACE_RUN);
-    }
 }
 
 /**

@@ -109,75 +109,160 @@ static void idletask(void)
     }
 }
 
+/**
+ * @brief Escalonador de Tarefas Aperiódicas
+ * return void
+ * Verifica se há tarefas na fila de Aperiódicas para serem executadas (hf_queue_count());
+ *   Se há tarefas, então pegar a primeira da fila (hf_queue_get()) e verificar se há jobs restantes;
+ *      Se há jobs então faz:
+ *          - decrementa o número de jobs;
+ *          - configurar pontos de retorno no inicio do loop e escalonar a tarefa aperiódica;
+ *      Se não há jobs então faz:
+ *          - remove da fila (hf_queue_remhead());
+ *          - volta para verificação de task aperiódicas;
+ *   Se não há tarefas, então chamar hf_yield() e continuar laço de repetição;
+*/
+
 static void escalonadorAperiodico(void)
 {
-    dprintf("oi 1");
     int32_t rc;
     volatile int32_t status;
 
-    uint16_t krnl_aper_current_task = 0;
-    hf_schedlock(0);
-
-    for( ;; )
+    for (;;)
     {
+
+        //Habilitar interrupções;
         status = _di();
 
-        if (hf_queue_count(krnl_tarefas_aper) == 0)
-        {
-            _ei(status);
-            hf_yield();
-            continue;
-        }
-
+        //Salvar contexto da tarefa atual;
         krnl_task = &krnl_tcb[krnl_current_task];
         rc = setjmp(krnl_task->task_context);
 
         if (rc)
         {
             _ei(status);
-            hf_yield();
             continue;
         }
 
+        //Magic of satã
         if (krnl_task->pstack[0] != STACK_MAGIC)
         {
             panic(PANIC_STACK_OVERFLOW);
         }
 
+        //Alterar o estado da tarefa atual;
         if (krnl_task->state == TASK_RUNNING)
             krnl_task->state = TASK_READY;
 
-        #if KERNEL_LOG >= 1
-        kprintf("\n[APER]%d %d %d %d %d ", krnl_aper_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
-        #endif
 
 
-        if (krnl_tasks > 0)
+        //Verifica se há tarefas na fila de aperiódicas;
+        if (hf_queue_count(krnl_tarefas_aper) > 0)
         {
-            //pegar id da proxima tas)
-            krnl_current_task = hf_queue_remhead(krnl_tarefas_aper);
-            krnl_current_task->state = TASK_RUNNING;
-            krnl_pcb.coop_cswitch++;
+            //Retirar a primeira tarefa aperiódica da fila;
+            krnl_task = hf_queue_remhead(krnl_tarefas_aper);
 
-            if (krnl_current_task->capacity > 0)
+            krnl_current_task = krnl_task->id;
+
+            //Alterar o estado para Running;
+            krnl_task->state = TASK_RUNNING;
+
+            //Decrementar o número de jobs da tarefa;
+            krnl_task->capacity = (krnl_task->capacity) - 1;
+
+            //Verificar se ainda há jobs dela;
+            if (krnl_task->capacity > 0)
             {
-                krnl_current_task->capacity =  krnl_current_task->capacity - 1;
-                if (hf_queue_addtail(krnl_tarefas_aper, krnl_current_task)) panic(PANIC_CANT_PLACE_RUN);
-                _restoreexec(krnl_task->task_context, status, krnl_current_task);
+                //Adicionar a tarefa com job decrementado ao fim da fila de tarefas aperiódicas;
+                if (hf_queue_addtail(krnl_tarefas_aper, krnl_task)) panic(PANIC_CANT_PLACE_RUN);
             }
+
+            //Remover tarefa aperiódica que não possui mais jobs a serem realizados;
             else
             {
-                hf_kill(krnl_current_task);
+                hf_queue_remhead(krnl_tarefas_aper);
+                //hf_kill(krnl_current_task);
             }
+
         }
         else
         {
-            panic(PANIC_NO_TASKS_LEFT);
+            _ei(status);
+            hf_yield();
         }
-
-        _ei(status);
     }
 }
+
+//
+//static void escalonadorAperiodico(void)
+//{
+//    dprintf("oi 1");
+//    int32_t rc;
+//    volatile int32_t status;
+//
+//    uint16_t krnl_aper_current_task = 0;
+//    hf_schedlock(0);
+//
+//    for( ;; )
+//    {
+//        status = _di();
+//
+//        if (hf_queue_count(krnl_tarefas_aper) == 0)
+//        {
+//            _ei(status);
+//            hf_yield();
+//            continue;
+//        }
+//
+//        krnl_task = &krnl_tcb[krnl_current_task];
+//        rc = setjmp(krnl_task->task_context);
+//
+//        if (rc)
+//        {
+//            _ei(status);
+//            hf_yield();
+//            continue;
+//        }
+//
+//        if (krnl_task->pstack[0] != STACK_MAGIC)
+//        {
+//            panic(PANIC_STACK_OVERFLOW);
+//        }
+//
+//        if (krnl_task->state == TASK_RUNNING)
+//            krnl_task->state = TASK_READY;
+//
+//        #if KERNEL_LOG >= 1
+//        kprintf("\n[APER]%d %d %d %d %d ", krnl_aper_current_task, krnl_task->period, krnl_task->capacity, krnl_task->deadline, (uint32_t)_read_us());
+//        #endif
+//
+//
+//        if (krnl_tasks > 0)
+//        {
+//            //pegar id da proxima tas)
+//            krnl_current_task = hf_queue_remhead(krnl_tarefas_aper);
+//            krnl_current_task->state = TASK_RUNNING;
+//            krnl_pcb.coop_cswitch++;
+//
+//            if (krnl_current_task->capacity > 0)
+//            {
+//                krnl_current_task->capacity =  krnl_current_task->capacity - 1;
+//                if (hf_queue_addtail(krnl_tarefas_aper, krnl_current_task)) panic(PANIC_CANT_PLACE_RUN);
+//                _restoreexec(krnl_task->task_context, status, krnl_current_task);
+//            }
+//            else
+//            {
+//                hf_kill(krnl_current_task);
+//            }
+//        }
+//        else
+//        {
+//            panic(PANIC_NO_TASKS_LEFT);
+//        }
+//
+//        _ei(status);
+//    }
+//}
 
 /**
  * @internal
@@ -214,10 +299,8 @@ int main(void)
         _timer_init();
         _timer_reset();
 
-        hf_spawn(idletask, 0, 0, 0, "idle task", 1024);
-
-        // TODO check capacity,, period e deadline
-        hf_spawn(escalonadorAperiodico,10,1,10, "Escalonador Aperiodico task", 1024);
+        //hf_spawn(idletask, 0, 0, 0, "idle task", 1024);
+        hf_spawn(escalonadorAperiodico,10,1,10, "Aperiodic task", 1024);
 
         _device_init();
         _task_init();
